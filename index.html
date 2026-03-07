@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 Mind Play 🧠</title>
+<style>
+body{
+    margin:0; font-family:'Segoe UI',sans-serif; color:white; text-align:center;
+    height:100vh; overflow:hidden; display:flex; justify-content:center; align-items:center;
+    background:linear-gradient(140deg,#0f2027,#203a43,#2c5364); transition:0.5s;
+}
+.screen{ display:none; position:absolute; top:0; left:0; width:100%; height:100%; padding-top:80px; box-sizing:border-box; }
+.active{ display:block; }
+.topPanel{ position:absolute; top:10px; width:100%; display:flex; justify-content:space-around; font-size:22px; text-shadow:1px 1px 5px black; z-index:10; }
+h1{ font-size:42px; margin-top:40px; text-shadow:2px 2px 5px black; }
+h2{ font-size:32px; margin:30px 0; }
+button{
+    padding:16px; margin:10px auto; border:none; border-radius:14px;
+    font-size:18px; width:85%; max-width:350px; display:block;
+    cursor:pointer; background: linear-gradient(145deg,#ff416c,#ff4b2b);
+    color:white; box-shadow:0 6px 12px rgba(0,0,0,0.4); transition:0.3s;
+}
+button:hover{ transform:translateY(-2px); filter:brightness(1.1); }
+button:active{ transform:scale(0.95); }
+.question{ font-size:26px; margin:30px 15px; min-height:80px; text-shadow:1px 1px 3px black; }
+.timer{ font-size:20px; color:#ffeb3b; margin-bottom:10px; font-weight:bold; }
+.backBtn{ position:absolute; top:15px; left:15px; width:50px; height:50px; border-radius:50%; background:#ff416c; border:none; color:white; font-size:24px; cursor:pointer; z-index:20; display:none; }
+.flashCorrect{ animation:correctFlash 0.6s; }
+.flashWrong{ animation:wrongFlash 0.6s; }
+@keyframes correctFlash{ 50%{ box-shadow:0 0 150px rgba(0,255,120,0.9) inset; } }
+@keyframes wrongFlash{ 50%{ box-shadow:0 0 150px rgba(255,0,0,0.9) inset; } }
+.settingsBtn{ position:fixed; right:15px; bottom:15px; width:55px; height:55px; border-radius:50%; background:#00000066; border:none; color:white; font-size:26px; cursor:pointer; }
+.settingsMenu{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#000000cc; padding:20px; border-radius:15px; display:none; text-align:center; max-width:400px; }
+.settingsMenu h3{ margin-bottom:10px; }
+</style>
+</head>
+<body>
+
+<div class="topPanel">⭐ <span id="score">0</span> 🏆 <span id="record">0</span></div>
+<button class="backBtn" id="backBtn" onclick="goBack()">←</button>
+
+<!-- Lobby -->
+<div id="lobby" class="screen active">
+<h1>🧠 Mind Play 🧠</h1>
+<div style="margin:20px">
+<p>Idade: <span id="ageValue">12</span> anos</p>
+<input type="range" id="ageSlider" min="6" max="60" value="12" oninput="document.getElementById('ageValue').innerText=this.value">
+</div>
+<button style="font-size:24px; padding:20px" onclick="show('mode')">▶ JOGAR</button>
+</div>
+
+<!-- Categoria -->
+<div id="mode" class="screen">
+<h2>Selecione o Desafio</h2>
+<button onclick="chooseMode('math')">🔢 Matemática</button>
+<button onclick="chooseMode('port')">📚 Português</button>
+<button onclick="chooseMode('history')">🏛️ História</button>
+</div>
+
+<!-- Dificuldade -->
+<div id="difficulty" class="screen">
+<h2>Nível de Dificuldade</h2>
+<button onclick="chooseDifficulty('easy')">🟢 Fácil</button>
+<button onclick="chooseDifficulty('medium')">🟡 Médio</button>
+<button onclick="chooseDifficulty('hard')">🔴 Difícil</button>
+</div>
+
+<!-- Jogo -->
+<div id="game" class="screen">
+<div class="timer">⏱️ <span id="time">15</span>s</div>
+<div id="question" class="question">Carregando...</div>
+<div id="options">
+<button onclick="check(0)" id="btn0"></button>
+<button onclick="check(1)" id="btn1"></button>
+<button onclick="check(2)" id="btn2"></button>
+<button onclick="check(3)" id="btn3"></button>
+</div>
+</div>
+
+<!-- Engrenagem -->
+<button class="settingsBtn" onclick="toggleSettings()">⚙️</button>
+<div class="settingsMenu" id="settingsMenu">
+<h3>Temas</h3>
+<button onclick="setTheme('blue')">🔵 Azul</button>
+<button onclick="setTheme('purple')">🟣 Roxo</button>
+<button onclick="setTheme('green')">🟢 Verde</button>
+<button onclick="setTheme('orange')">🟠 Laranja</button>
+<button onclick="setTheme('red')">🔴 Vermelho</button>
+<button onclick="setTheme('pink')">🌸 Rosa</button>
+</div>
+
+<script>
+// Variáveis globais
+let score=0, record=localStorage.getItem("quizRec")||0;
+let timer, timeLeft=15;
+let currentMode="", currentDiff="", currentCorrect=0;
+let history=["lobby"];
+document.getElementById("record").innerText = record;
+
+// --- Perguntas Portugues e História (exemplo) ---
+// Aqui você vai adicionar manualmente 500 perguntas únicas de Português e História
+const portData = [
+    {q:"Qual o plural de 'Cidadão'?", a:["Cidadões","Cidadães","Cidadãos","Cidadonês"], c:2, d:"medium"},
+    {q:"Antônimo de 'Rápido':", a:["Veloz","Lento","Forte","Apressado"], c:1, d:"easy"},
+    {q:"Qual palavra está escrita corretamente?", a:["Excessão","Exceção","Esceção","Exseção"], c:1, d:"hard"},
+    {q:"Coletivo de 'Lobos':", a:["Enxame","Alcateia","Cardume","Manada"], c:1, d:"easy"}
+    // ... repetir até 500 manualmente
+];
+
+const historyData = [
+    {q:"Em que ano ocorreu a Independência do Brasil?", a:["1822","1889","1500","1808"], c:0, d:"easy"},
+    {q:"Quem foi Dom Pedro I?", a:["Imperador","Presidente","General","Rei"], c:0, d:"easy"},
+    {q:"Em que ano começou a Revolução Francesa?", a:["1789","1776","1804","1815"], c:0, d:"medium"},
+    {q:"Quem descobriu a América?", a:["Cristóvão Colombo","Pedro Álvares Cabral","Vasco da Gama","Americo Vespúcio"], c:0, d:"medium"}
+    // ... repetir até 500 manualmente
+];
+
+// --- Matemática automática ---
+function generateMathQuestion(diff){
+    let a,b,ans,op,questionStr;
+    if(diff==="easy"){ // + -
+        a=Math.floor(Math.random()*50); b=Math.floor(Math.random()*50);
+        op=Math.random()<0.5?"+":"-";
+        ans = op==="+"? a+b : a-b;
+        questionStr=`${a} ${op} ${b}`;
+    } else if(diff==="medium"){ // + - x ÷
+        a=Math.floor(Math.random()*20)+1; b=Math.floor(Math.random()*20)+1;
+        let ops=["+","-","×","÷"]; op=ops[Math.floor(Math.random()*4)];
+        if(op==="÷"){ a=a*b; } // garante divisível
+        ans = op==="+ "? a+b : op=="-"? a-b : op=="×"? a*b : a/b;
+        questionStr=`${a} ${op} ${b}`;
+    } else { // difícil: + - x ÷ % ^ √
+        a=Math.floor(Math.random()*20)+1; b=Math.floor(Math.random()*20)+1;
+        let ops=["+","-","×","÷","%","^","√"]; op=ops[Math.floor(Math.random()*7)];
+        if(op==="÷"){ a=a*b; ans=a/b; questionStr=`${a} ÷ ${b}`; }
+        else if(op==="×"){ ans=a*b; questionStr=`${a} × ${b}`; }
+        else if(op==="+"){ ans=a+b; questionStr=`${a} + ${b}`; }
+        else if(op=="-"){ ans=a-b; questionStr=`${a} - ${b}`; }
+        else if(op=="%"){ ans=Math.floor(a*b/100); questionStr=`${a}% de ${b}`; }
+        else if(op=="^"){ ans=Math.pow(a,b); questionStr=`${a}^${b}`; }
+        else if(op=="√"){ ans=Math.sqrt(a*a); questionStr=`√${a*a}`; }
+    }
+    // gera 4 alternativas
+    let options = [ans, ans+1, ans-1, ans+2];
+    options.sort(()=>Math.random()-0.5);
+    return {q:questionStr, a:options, c:options.indexOf(ans)};
+}
+
+// --- Funções ---
+function show(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if(history[history.length-1]!==id) history.push(id);
+    document.getElementById("backBtn").style.display = history.length>1?"block":"none";
+}
+
+function goBack(){
+    if(history.length>1){
+        history.pop();
+        let prev=history[history.length-1];
+        document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+        document.getElementById(prev).classList.add('active');
+        if(history.length===1) document.getElementById("backBtn").style.display="none";
+    }
+}
+
+function chooseMode(m){ currentMode=m; show('difficulty'); }
+
+function chooseDifficulty(d){
+    currentDiff=d;
+    score=0; document.getElementById("score").innerText=score;
+    show('game');
+    nextQuestion();
+}
+
+function nextQuestion(){
+    clearInterval(timer);
+    timeLeft=15;
+    document.getElementById("time").innerText=timeLeft;
+
+    let q;
+    if(currentMode==="math"){ q=generateMathQuestion(currentDiff); }
+    else if(currentMode==="port"){ q=portData[Math.floor(Math.random()*portData.length)]; }
+    else if(currentMode==="history"){ q=historyData[Math.floor(Math.random()*historyData.length)]; }
+
+    document.getElementById("question").innerText=q.q;
+    currentCorrect=q.c;
+    for(let i=0;i<4;i++){ document.getElementById("btn"+i).innerText=q.a[i]; }
+
+    timer=setInterval(()=>{
+        timeLeft--;
+        document.getElementById("time").innerText=timeLeft;
+        if(timeLeft<=0) check(-1);
+    },1000);
+}
+
+function check(i){
+    clearInterval(timer);
+    if(i===currentCorrect){ score+=10; document.body.classList.add("flashCorrect"); }
+    else{ score=0; document.body.classList.add("flashWrong"); }
+    document.getElementById("score").innerText=score;
+    if(score>record){ record=score; localStorage.setItem("quizRec",record); document.getElementById("record").innerText=record; }
+    setTimeout(()=>{ document.body.classList.remove("flashCorrect","flashWrong"); nextQuestion(); },600);
+}
+
+function toggleSettings(){
+    let menu=document.getElementById("settingsMenu");
+    menu.style.display=(menu.style.display==="block")?"none":"block";
+}
+
+function setTheme(t){
+    if(t==="blue") document.body.style.background="linear-gradient(140deg,#0f2027,#203a43,#2c5364)";
+    if(t==="purple") document.body.style.background="linear-gradient(140deg,#41295a,#2F0743)";
+    if(t==="green") document.body.style.background="linear-gradient(140deg,#134E5E,#71B280)";
+    if(t==="orange") document.body.style.background="linear-gradient(140deg,#ff8008,#ffc837)";
+    if(t==="red") document.body.style.background="linear-gradient(140deg,#8B0000,#B22222,#FF0000)";
+    if(t==="pink") document.body.style.background="linear-gradient(140deg,#ff758c,#ff7eb3,#ffb6c1)";
+}
+</script>
+</body>
+</html>
